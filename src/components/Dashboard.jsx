@@ -164,29 +164,29 @@ export default function Dashboard({ tokens, setTokens, baseUrl }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen">
       <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto flex items-center gap-4 p-4">
-          <div className="w-10 h-10 rounded bg-slate-200 overflow-hidden flex items-center justify-center">
+        <div className="max-w-6xl mx-auto flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded bg-slate-200 overflow-hidden flex items-center justify-center">
             {logoUrl ? (
               <img src={`${baseUrl}${logoUrl}`} alt="Logo" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-xs text-slate-500">No Logo</span>
+              <span className="text-[10px] sm:text-xs text-slate-500">No Logo</span>
             )}
           </div>
-          <div className="flex-1">
-            <h1 className="font-semibold">MBF HR</h1>
-            <p className="text-xs text-slate-500">Currency: {profile?.currency || 'TOP'} • Role: {profile?.role || 'user'}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold truncate">MBF HR</h1>
+            <p className="text-xs text-slate-500 truncate">Currency: {profile?.currency || 'TOP'} • Role: {profile?.role || 'user'}</p>
           </div>
-          <label className="text-sm bg-blue-600 text-white px-3 py-1 rounded cursor-pointer">
+          <label className="hidden sm:inline-flex btn-primary cursor-pointer">
             {loading ? 'Uploading...' : 'Upload Logo'}
             <input type="file" className="hidden" onChange={uploadLogo} accept="image/*" />
           </label>
-          <button className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded" onClick={()=>setTokens(null)}>Logout</button>
+          <button className="btn-secondary" onClick={()=>setTokens(null)}>Logout</button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 space-y-4">
+      <main className="max-w-6xl mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {msg && <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">{msg}</div>}
         {health?.status !== 'ok' && (
           <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
@@ -205,7 +205,7 @@ export default function Dashboard({ tokens, setTokens, baseUrl }) {
               {t.label}
             </button>
           ))}
-          <div className="ml-auto flex gap-2 items-center">
+          <div className="ml-auto flex flex-1 sm:flex-none gap-2 items-center min-w-[220px]">
             {tab === 'employees' && (
               <input className="input" placeholder="Search employees" value={filters.q} onChange={e=>setFilters(f=>({...f, q:e.target.value}))} />
             )}
@@ -230,6 +230,14 @@ export default function Dashboard({ tokens, setTokens, baseUrl }) {
         {tab === 'leave' && <Leave baseUrl={baseUrl} token={token} filters={filters} role={profile?.role || 'user'} />}
         {tab === 'payroll' && <Payroll baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} filters={filters} role={profile?.role || 'user'} />}
       </main>
+
+      {/* Mobile logo upload fallback */}
+      <div className="fixed bottom-3 right-3 sm:hidden">
+        <label className="btn-primary cursor-pointer">
+          {loading ? 'Uploading...' : 'Upload Logo'}
+          <input type="file" className="hidden" onChange={uploadLogo} accept="image/*" />
+        </label>
+      </div>
     </div>
   )
 }

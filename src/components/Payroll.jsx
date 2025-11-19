@@ -68,39 +68,39 @@ export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {}
 
   const currencyFmt = (v) => (v == null ? '-' : new Intl.NumberFormat('en-TO', { style: 'currency', currency }).format(v))
 
-  const currentPayrollEstimate = useMemo(() => {
+  const currentPayrollEstimate = (function(){
     const total = employees.reduce((sum, e) => sum + (e.salary || 0), 0)
     return currencyFmt(total)
-  }, [employees])
+  })()
 
   const canCreate = role === 'manager' || role === 'admin'
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-xl p-4">
+      <div className="card">
         <h2 className="font-semibold mb-3">Create Payroll Run</h2>
-        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2" role="alert">{error}</div>}
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Period Start (YYYY-MM-DD)" value={form.period_start} onChange={e=>setForm(f=>({...f, period_start:e.target.value}))} />
-          <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Period End (YYYY-MM-DD)" value={form.period_end} onChange={e=>setForm(f=>({...f, period_end:e.target.value}))} />
-          <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading || !canCreate}>Create</button>
+          <input className="input" placeholder="Period Start (YYYY-MM-DD)" value={form.period_start} onChange={e=>setForm(f=>({...f, period_start:e.target.value}))} />
+          <input className="input" placeholder="Period End (YYYY-MM-DD)" value={form.period_end} onChange={e=>setForm(f=>({...f, period_end:e.target.value}))} />
+          <button className="btn-primary" disabled={loading || !canCreate} aria-disabled={!canCreate}>Create</button>
         </form>
         {!canCreate && <p className="text-xs text-slate-500 mt-2">Only managers/admins can create payroll runs</p>}
         <p className="text-sm text-slate-500 mt-2">Current estimated total across employees: <span className="font-medium text-slate-800">{currentPayrollEstimate}</span></p>
       </div>
 
-      <div className="bg-white border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
+      <div className="card">
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
           <h2 className="font-semibold">Payroll Runs</h2>
-          <div className="flex gap-2">
-            <a className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg" href={`${buildUrl().toString().replace('/payroll/runs', '/payroll/runs/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
-            <button onClick={loadRuns} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <a className="btn-secondary" href={`${buildUrl().toString().replace('/payroll/runs', '/payroll/runs/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
+            <button onClick={loadRuns} className="btn-secondary" disabled={loading}>Refresh</button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="table-base">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="table-head">
                 <th className="py-2 pr-4">Period</th>
                 <th className="py-2 pr-4">Total</th>
                 <th className="py-2 pr-4">Created</th>

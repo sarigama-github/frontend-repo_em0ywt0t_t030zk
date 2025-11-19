@@ -55,7 +55,10 @@ export default function Attendance({ baseUrl, token, filters = {}, role = 'user'
     try {
       const payload = { ...form, employee_id: parseInt(form.employee_id) }
       const res = await fetch(`${baseUrl}/api/hr/attendance`, { method: 'POST', headers, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have permission to record attendance')
+        throw new Error('Save failed')
+      }
       setForm({ employee_id: '', status: 'present', note: '' })
       await load()
     } catch (e) {
@@ -69,43 +72,43 @@ export default function Attendance({ baseUrl, token, filters = {}, role = 'user'
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-xl p-4">
+      <div className="card">
         <h2 className="font-semibold mb-3">Record Attendance</h2>
-        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2" role="alert">{error}</div>}
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <select className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" value={form.employee_id} onChange={e=>setForm(f=>({...f, employee_id:e.target.value}))}>
+          <select className="input" value={form.employee_id} onChange={e=>setForm(f=>({...f, employee_id:e.target.value}))}>
             <option value="">Select employee</option>
             {employees.map(emp => (
               <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
             ))}
           </select>
-          <select className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" value={form.status} onChange={e=>setForm(f=>({...f, status:e.target.value}))}>
+          <select className="input" value={form.status} onChange={e=>setForm(f=>({...f, status:e.target.value}))}>
             <option value="present">Present</option>
             <option value="absent">Absent</option>
             <option value="leave">On Leave</option>
             <option value="clock_in">Clock In</option>
             <option value="clock_out">Clock Out</option>
           </select>
-          <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Note" value={form.note} onChange={e=>setForm(f=>({...f, note:e.target.value}))} />
+          <input className="input" placeholder="Note" value={form.note} onChange={e=>setForm(f=>({...f, note:e.target.value}))} />
           <div className="md:col-span-1">
-            <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading || !canRecord}>Save</button>
+            <button className="btn-primary" disabled={loading || !canRecord} aria-disabled={!canRecord}>Save</button>
           </div>
         </form>
         {!canRecord && <p className="text-xs text-slate-500 mt-2">Only staff/managers/admins can record attendance</p>}
       </div>
 
-      <div className="bg-white border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
+      <div className="card">
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
           <h2 className="font-semibold">Attendance</h2>
-          <div className="flex gap-2">
-            <a className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" href={`${buildUrl().toString().replace('/attendance', '/attendance/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
-            <button onClick={load} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <a className="btn-secondary" href={`${buildUrl().toString().replace('/attendance', '/attendance/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
+            <button onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="table-base">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="table-head">
                 <th className="py-2 pr-4">Timestamp</th>
                 <th className="py-2 pr-4">Employee</th>
                 <th className="py-2 pr-4">Status</th>
@@ -119,7 +122,9 @@ export default function Attendance({ baseUrl, token, filters = {}, role = 'user'
                   <tr key={row.id} className="border-t">
                     <td className="py-2 pr-4">{row.ts || '-'}</td>
                     <td className="py-2 pr-4">{emp ? `${emp.first_name} ${emp.last_name}` : row.employee_id}</td>
-                    <td className="py-2 pr-4 capitalize">{row.status || '-'}</td>
+                    <td className="py-2 pr-4 capitalize">
+                      <span className={`chip ${row.status==='approved' || row.status==='present' ? 'border-green-300 text-green-700 bg-green-50' : row.status==='rejected' || row.status==='absent' ? 'border-red-300 text-red-700 bg-red-50' : 'border-slate-300 text-slate-700 bg-slate-50'}`}>{row.status || '-'}</span>
+                    </td>
                     <td className="py-2 pr-4">{row.note || '-'}</td>
                   </tr>
                 )

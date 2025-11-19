@@ -71,38 +71,38 @@ export default function Employees({ baseUrl, token, currency = 'TOP', role = 'us
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-xl p-4">
+      <div className="card">
         <h2 className="font-semibold mb-3">{editingId ? 'Edit Employee' : 'Add Employee'}</h2>
-        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2" role="alert">{error}</div>}
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="input" placeholder="First name" value={form.first_name} onChange={e=>setForm(f=>({...f, first_name:e.target.value}))} required />
-          <input className="input" placeholder="Last name" value={form.last_name} onChange={e=>setForm(f=>({...f, last_name:e.target.value}))} required />
-          <input className="input" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
-          <input className="input" placeholder="Phone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
-          <input className="input" placeholder="Position" value={form.position} onChange={e=>setForm(f=>({...f, position:e.target.value}))} />
-          <input className="input" placeholder={`Salary (${currency})`} value={form.salary} onChange={e=>setForm(f=>({...f, salary:e.target.value}))} />
-          <input className="input" placeholder="Hire Date (YYYY-MM-DD)" value={form.hire_date} onChange={e=>setForm(f=>({...f, hire_date:e.target.value}))} />
+          <input className="input" placeholder="First name" aria-label="First name" value={form.first_name} onChange={e=>setForm(f=>({...f, first_name:e.target.value}))} required />
+          <input className="input" placeholder="Last name" aria-label="Last name" value={form.last_name} onChange={e=>setForm(f=>({...f, last_name:e.target.value}))} required />
+          <input className="input" placeholder="Email" type="email" aria-label="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
+          <input className="input" placeholder="Phone" aria-label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
+          <input className="input" placeholder="Position" aria-label="Position" value={form.position} onChange={e=>setForm(f=>({...f, position:e.target.value}))} />
+          <input className="input" placeholder={`Salary (${currency})`} aria-label="Salary" value={form.salary} onChange={e=>setForm(f=>({...f, salary:e.target.value}))} />
+          <input className="input" placeholder="Hire Date (YYYY-MM-DD)" aria-label="Hire date" value={form.hire_date} onChange={e=>setForm(f=>({...f, hire_date:e.target.value}))} />
           <div className="md:col-span-3 flex gap-2">
-            <button className="btn-primary" disabled={loading || !canManage}>{editingId ? 'Update' : 'Create'}</button>
+            <button className="btn-primary" disabled={loading || !canManage} aria-disabled={!canManage}>{editingId ? 'Update' : 'Create'}</button>
             {editingId && <button type="button" className="btn-secondary" onClick={()=>{setEditingId(null);setForm({ first_name: '', last_name: '', email: '', phone: '', position: '', salary: '', hire_date: '' })}}>Cancel</button>}
             {!canManage && <span className="text-xs text-slate-500 self-center">Only managers/admins can create or edit employees</span>}
           </div>
         </form>
       </div>
 
-      <div className="bg-white border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
+      <div className="card">
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
           <h2 className="font-semibold">Employees</h2>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center w-full sm:w-auto">
             <input className="input" placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} />
             <a className="btn-secondary" href={`${baseUrl}/api/hr/employees/export${q ? `?q=${encodeURIComponent(q)}` : ''}`} target="_blank" rel="noreferrer">Export CSV</a>
-            <button onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
+            <button type="button" onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="table-base">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="table-head">
                 <th className="py-2 pr-4">Name</th>
                 <th className="py-2 pr-4">Email</th>
                 <th className="py-2 pr-4">Phone</th>
@@ -122,7 +122,7 @@ export default function Employees({ baseUrl, token, currency = 'TOP', role = 'us
                   <td className="py-2 pr-4">{currencyFmt(emp.salary)}</td>
                   <td className="py-2 pr-4">{emp.hire_date || '-'}</td>
                   <td className="py-2 pr-4">
-                    <button className={`text-blue-600 hover:underline disabled:opacity-50`} onClick={()=>edit(emp)} disabled={!canManage}>Edit</button>
+                    <button type="button" className={`text-blue-600 hover:underline disabled:opacity-50`} onClick={()=>edit(emp)} disabled={!canManage}>Edit</button>
                   </td>
                 </tr>
               ))}

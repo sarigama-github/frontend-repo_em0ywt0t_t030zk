@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-export default function Leave({ baseUrl, token }) {
+export default function Leave({ baseUrl, token, filters = {} }) {
   const [items, setItems] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({ employee_id: '', start_date: '', end_date: '', type: 'annual', reason: '' })
+  const [form, setForm] = useState({ employee_id: '', start_date: '', end_date: '', leave_type: 'annual', reason: '' })
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const headers = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadEmployees = async () => {
     try {
@@ -20,11 +20,19 @@ export default function Leave({ baseUrl, token }) {
     }
   }
 
+  const buildUrl = () => {
+    const url = new URL(`${baseUrl}/api/hr/leave`)
+    if (filters.df) url.searchParams.set('date_from', filters.df)
+    if (filters.dt) url.searchParams.set('date_to', filters.dt)
+    if (filters.status) url.searchParams.set('status', filters.status)
+    return url
+  }
+
   const load = async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${baseUrl}/api/hr/leave`, { headers })
+      const res = await fetch(buildUrl(), { headers })
       if (!res.ok) throw new Error('Failed to load leave requests')
       const data = await res.json()
       setItems(data)
@@ -36,16 +44,21 @@ export default function Leave({ baseUrl, token }) {
   }
 
   useEffect(() => { load(); loadEmployees() }, [])
+  useEffect(() => { load() }, [filters.df, filters.dt, filters.status])
 
   const submit = async (e) => {
     e.preventDefault()
+    // Validation
+    if (!form.employee_id) { setError('Employee is required'); return }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.start_date) || !/^\d{4}-\d{2}-\d{2}$/.test(form.end_date)) { setError('Dates must be YYYY-MM-DD'); return }
+
     setLoading(true)
     setError('')
     try {
-      const payload = { ...form, employee_id: form.employee_id ? parseInt(form.employee_id) : null }
+      const payload = { ...form, employee_id: parseInt(form.employee_id) }
       const res = await fetch(`${baseUrl}/api/hr/leave`, { method: 'POST', headers, body: JSON.stringify(payload) })
       if (!res.ok) throw new Error('Save failed')
-      setForm({ employee_id: '', start_date: '', end_date: '', type: 'annual', reason: '' })
+      setForm({ employee_id: '', start_date: '', end_date: '', leave_type: 'annual', reason: '' })
       await load()
     } catch (e) {
       setError(e.message)
@@ -82,7 +95,7 @@ export default function Leave({ baseUrl, token }) {
           </select>
           <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Start Date (YYYY-MM-DD)" value={form.start_date} onChange={e=>setForm(f=>({...f, start_date:e.target.value}))} />
           <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="End Date (YYYY-MM-DD)" value={form.end_date} onChange={e=>setForm(f=>({...f, end_date:e.target.value}))} />
-          <select className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" value={form.type} onChange={e=>setForm(f=>({...f, type:e.target.value}))}>
+          <select className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" value={form.leave_type} onChange={e=>setForm(f=>({...f, leave_type:e.target.value}))}>
             <option value="annual">Annual</option>
             <option value="sick">Sick</option>
             <option value="unpaid">Unpaid</option>
@@ -97,7 +110,10 @@ export default function Leave({ baseUrl, token }) {
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold">Leave Requests</h2>
-          <button onClick={load} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          <div className="flex gap-2">
+            <a className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg" href={`${buildUrl().toString().replace('/leave', '/leave/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
+            <button onClick={load} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -119,7 +135,7 @@ export default function Leave({ baseUrl, token }) {
                     <td className="py-2 pr-4">{emp ? `${emp.first_name} ${emp.last_name}` : row.employee_id}</td>
                     <td className="py-2 pr-4">{row.start_date}</td>
                     <td className="py-2 pr-4">{row.end_date}</td>
-                    <td className="py-2 pr-4 capitalize">{row.type}</td>
+                    <td className="py-2 pr-4 capitalize">{row.leave_type}</td>
                     <td className="py-2 pr-4 capitalize">{row.status}</td>
                     <td className="py-2 pr-4 space-x-2">
                       {row.status === 'pending' && (

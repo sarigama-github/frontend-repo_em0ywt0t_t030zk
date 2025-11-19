@@ -6,6 +6,7 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
   const [error, setError] = useState('')
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', position: '', salary: '', hire_date: '' })
   const [editingId, setEditingId] = useState(null)
+  const [q, setQ] = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
@@ -13,7 +14,9 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${baseUrl}/api/hr/employees`, { headers })
+      const url = new URL(`${baseUrl}/api/hr/employees`)
+      if (q) url.searchParams.set('q', q)
+      const res = await fetch(url, { headers })
       if (!res.ok) throw new Error('Failed to load employees')
       const data = await res.json()
       setItems(data)
@@ -24,10 +27,24 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [q])
 
   const submit = async (e) => {
     e.preventDefault()
+    // Basic validation
+    if (!form.first_name || !form.last_name) {
+      setError('First and last name are required')
+      return
+    }
+    if (form.salary && isNaN(parseFloat(form.salary))) {
+      setError('Salary must be a number')
+      return
+    }
+    if (form.hire_date && !/^\d{4}-\d{2}-\d{2}$/.test(form.hire_date)) {
+      setError('Hire date must be YYYY-MM-DD')
+      return
+    }
+
     setLoading(true)
     setError('')
     const payload = { ...form, salary: form.salary ? parseFloat(form.salary) : null }
@@ -61,8 +78,8 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
         <h2 className="font-semibold mb-3">{editingId ? 'Edit Employee' : 'Add Employee'}</h2>
         {error && <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="input" placeholder="First name" value={form.first_name} onChange={e=>setForm(f=>({...f, first_name:e.target.value}))} />
-          <input className="input" placeholder="Last name" value={form.last_name} onChange={e=>setForm(f=>({...f, last_name:e.target.value}))} />
+          <input className="input" placeholder="First name" value={form.first_name} onChange={e=>setForm(f=>({...f, first_name:e.target.value}))} required />
+          <input className="input" placeholder="Last name" value={form.last_name} onChange={e=>setForm(f=>({...f, last_name:e.target.value}))} required />
           <input className="input" placeholder="Email" value={form.email} onChange={e=>setForm(f=>({...f, email:e.target.value}))} />
           <input className="input" placeholder="Phone" value={form.phone} onChange={e=>setForm(f=>({...f, phone:e.target.value}))} />
           <input className="input" placeholder="Position" value={form.position} onChange={e=>setForm(f=>({...f, position:e.target.value}))} />
@@ -78,7 +95,10 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold">Employees</h2>
-          <button onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
+          <div className="flex gap-2 items-center">
+            <input className="input" placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} />
+            <button onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -104,6 +124,7 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
                   <td className="py-2 pr-4">{emp.hire_date || '-'}</td>
                   <td className="py-2 pr-4">
                     <button className="text-blue-600 hover:underline" onClick={()=>edit(emp)}>Edit</button>
+                    <a className="ml-3 text-slate-600 hover:underline" href={`${baseUrl}/api/hr/employees/export`} target="_blank" rel="noreferrer">Export CSV</a>
                   </td>
                 </tr>
               ))}
@@ -119,13 +140,10 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
 }
 
 // Tailwind helpers
-// Using utility classes directly is verbose; define small classNames here
 const inputClass = 'w-full bg-white border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
 const btnPrimary = 'bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60'
 const btnSecondary = 'bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60'
 
-// Attach to global scope for simpler JSX above
-// eslint-disable-next-line no-undef
 if (typeof window !== 'undefined') {
   window.__classes = { input: inputClass, btnPrimary, btnSecondary }
 }

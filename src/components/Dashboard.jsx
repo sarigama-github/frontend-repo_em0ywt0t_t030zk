@@ -1,22 +1,49 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Employees from './Employees'
 import Attendance from './Attendance'
 import Leave from './Leave'
 import Payroll from './Payroll'
 
-export default function Dashboard({ token, baseUrl }) {
+export default function Dashboard({ tokens, setTokens, baseUrl }) {
+  const token = tokens?.access_token
+  const refreshToken = tokens?.refresh_token
+
   const [profile, setProfile] = useState(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [tab, setTab] = useState('employees')
 
+  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
+
+  // Silent refresh helper
+  const fetchWithAuth = async (url, options = {}) => {
+    const res = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } })
+    if (res.status === 401 && refreshToken) {
+      const r = await fetch(`${baseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      })
+      if (r.ok) {
+        const newTokens = await r.json()
+        setTokens(newTokens)
+        // retry original
+        const retry = await fetch(url, { ...options, headers: { Authorization: `Bearer ${newTokens.access_token}`, ...(options.headers || {}) } })
+        return retry
+      } else {
+        setTokens(null)
+        return res
+      }
+    }
+    return res
+  }
+
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${baseUrl}/api/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const res = await fetchWithAuth(`${baseUrl}/api/profile`)
+        if (!res.ok) throw new Error('Failed to load profile')
         const data = await res.json()
         setProfile(data)
         setLogoUrl(data.logo_url || '')
@@ -24,7 +51,7 @@ export default function Dashboard({ token, baseUrl }) {
         setMsg('Failed to load profile')
       }
     }
-    load()
+    if (token) load()
   }, [token, baseUrl])
 
   const uploadLogo = async (e) => {
@@ -37,7 +64,8 @@ export default function Dashboard({ token, baseUrl }) {
     try {
       const res = await fetch(`${baseUrl}/api/settings/logo`, {
         method: 'POST',
-        body: form
+        body: form,
+        headers
       })
       if (!res.ok) throw new Error('Upload failed')
       const data = await res.json()
@@ -49,6 +77,9 @@ export default function Dashboard({ token, baseUrl }) {
       setLoading(false)
     }
   }
+
+  // Filter state for lists
+  const [filters, setFilters] = useState({ q: '', status: '', df: '', dt: '' })
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -69,13 +100,14 @@ export default function Dashboard({ token, baseUrl }) {
             {loading ? 'Uploading...' : 'Upload Logo'}
             <input type="file" className="hidden" onChange={uploadLogo} accept="image/*" />
           </label>
+          <button className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded" onClick={()=>setTokens(null)}>Logout</button>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-4 space-y-4">
         {msg && <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">{msg}</div>}
 
-        <nav className="bg-white border rounded-xl p-2 flex gap-2">
+        <nav className="bg-white border rounded-xl p-2 flex flex-wrap gap-2 items-center">
           {[
             { id: 'employees', label: 'Employees' },
             { id: 'attendance', label: 'Attendance' },
@@ -86,12 +118,27 @@ export default function Dashboard({ token, baseUrl }) {
               {t.label}
             </button>
           ))}
+          <div className="ml-auto flex gap-2 items-center">
+            {tab !== 'employees' && (
+              <>
+                {(tab === 'attendance' || tab === 'leave' || tab === 'payroll') && (
+                  <>
+                    <input className="input" placeholder="From (YYYY-MM-DD)" value={filters.df} onChange={e=>setFilters(f=>({...f, df:e.target.value}))} />
+                    <input className="input" placeholder="To (YYYY-MM-DD)" value={filters.dt} onChange={e=>setFilters(f=>({...f, dt:e.target.value}))} />
+                  </>
+                )}
+                {tab === 'employees' && (
+                  <input className="input" placeholder="Search employees" value={filters.q} onChange={e=>setFilters(f=>({...f, q:e.target.value}))} />
+                )}
+              </>
+            )}
+          </div>
         </nav>
 
         {tab === 'employees' && <Employees baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} />}
-        {tab === 'attendance' && <Attendance baseUrl={baseUrl} token={token} />}
-        {tab === 'leave' && <Leave baseUrl={baseUrl} token={token} />}
-        {tab === 'payroll' && <Payroll baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} />}
+        {tab === 'attendance' && <Attendance baseUrl={baseUrl} token={token} filters={filters} />}
+        {tab === 'leave' && <Leave baseUrl={baseUrl} token={token} filters={filters} />}
+        {tab === 'payroll' && <Payroll baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} filters={filters} />}
       </main>
     </div>
   )

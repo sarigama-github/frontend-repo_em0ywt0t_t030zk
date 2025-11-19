@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export default function Payroll({ baseUrl, token, currency = 'TOP' }) {
+export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {} }) {
   const [runs, setRuns] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ period_start: '', period_end: '' })
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const headers = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const loadEmployees = async () => {
     try {
@@ -20,11 +20,18 @@ export default function Payroll({ baseUrl, token, currency = 'TOP' }) {
     }
   }
 
+  const buildUrl = () => {
+    const url = new URL(`${baseUrl}/api/hr/payroll/runs`)
+    if (filters.df) url.searchParams.set('date_from', filters.df)
+    if (filters.dt) url.searchParams.set('date_to', filters.dt)
+    return url
+  }
+
   const loadRuns = async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${baseUrl}/api/hr/payroll/runs`, { headers })
+      const res = await fetch(buildUrl(), { headers })
       if (!res.ok) throw new Error('Failed to load payroll runs')
       const data = await res.json()
       setRuns(data)
@@ -36,9 +43,13 @@ export default function Payroll({ baseUrl, token, currency = 'TOP' }) {
   }
 
   useEffect(() => { loadRuns(); loadEmployees() }, [])
+  useEffect(() => { loadRuns() }, [filters.df, filters.dt])
 
   const submit = async (e) => {
     e.preventDefault()
+    // Validation
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.period_start) || !/^\d{4}-\d{2}-\d{2}$/.test(form.period_end)) { setError('Dates must be YYYY-MM-DD'); return }
+
     setLoading(true)
     setError('')
     try {
@@ -55,7 +66,6 @@ export default function Payroll({ baseUrl, token, currency = 'TOP' }) {
 
   const currencyFmt = (v) => (v == null ? '-' : new Intl.NumberFormat('en-TO', { style: 'currency', currency }).format(v))
 
-  // For simple demo, estimate total by summing current employee salaries
   const currentPayrollEstimate = useMemo(() => {
     const total = employees.reduce((sum, e) => sum + (e.salary || 0), 0)
     return currencyFmt(total)
@@ -77,7 +87,10 @@ export default function Payroll({ baseUrl, token, currency = 'TOP' }) {
       <div className="bg-white border rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold">Payroll Runs</h2>
-          <button onClick={loadRuns} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          <div className="flex gap-2">
+            <a className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg" href={`${buildUrl().toString().replace('/payroll/runs', '/payroll/runs/export')}`} target="_blank" rel="noreferrer">Export CSV</a>
+            <button onClick={loadRuns} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Refresh</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

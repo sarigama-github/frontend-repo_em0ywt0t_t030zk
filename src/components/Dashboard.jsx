@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import Employees from './Employees'
 
 export default function Dashboard({ token, baseUrl }) {
   const [profile, setProfile] = useState(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
+  const [tab, setTab] = useState('employees')
 
   useEffect(() => {
     const load = async () => {
@@ -67,26 +69,26 @@ export default function Dashboard({ token, baseUrl }) {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4">
-        {msg && <div className="mb-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">{msg}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border p-4">
-            <h2 className="font-semibold mb-2">Welcome</h2>
-            <p className="text-sm text-slate-600">Hello, {profile?.display_name || profile?.username}</p>
-          </div>
-          <div className="bg-white rounded-xl border p-4">
-            <h2 className="font-semibold mb-2">Quick Links</h2>
-            <ul className="text-sm text-blue-700 list-disc ml-5">
-              <li>Employees</li>
-              <li>Attendance</li>
-              <li>Payroll</li>
-            </ul>
-          </div>
-          <div className="bg-white rounded-xl border p-4">
-            <h2 className="font-semibold mb-2">System</h2>
-            <p className="text-sm text-slate-600">Secure, modular like Dolibarr</p>
-          </div>
-        </div>
+      <main className="max-w-6xl mx-auto p-4 space-y-4">
+        {msg && <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">{msg}</div>}
+
+        <nav className="bg-white border rounded-xl p-2 flex gap-2">
+          {[
+            { id: 'employees', label: 'Employees' },
+            { id: 'attendance', label: 'Attendance' },
+            { id: 'leave', label: 'Leave' },
+            { id: 'payroll', label: 'Payroll' }
+          ].map(t => (
+            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-2 rounded-lg ${tab===t.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        {tab === 'employees' && <Employees baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} />}
+        {tab !== 'employees' && (
+          <div className="bg-white border rounded-xl p-8 text-slate-500">This section will be scaffolded next.</div>
+        )}
       </main>
     </div>
   )

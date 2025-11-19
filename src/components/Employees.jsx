@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
-export default function Employees({ baseUrl, token, currency = 'TOP' }) {
+export default function Employees({ baseUrl, token, currency = 'TOP', role = 'user', q: qProp = '' }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', position: '', salary: '', hire_date: '' })
   const [editingId, setEditingId] = useState(null)
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(qProp)
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  useEffect(() => { setQ(qProp) }, [qProp])
+
+  const headers = useMemo(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token])
 
   const load = async () => {
     setLoading(true)
@@ -31,19 +33,9 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    // Basic validation
-    if (!form.first_name || !form.last_name) {
-      setError('First and last name are required')
-      return
-    }
-    if (form.salary && isNaN(parseFloat(form.salary))) {
-      setError('Salary must be a number')
-      return
-    }
-    if (form.hire_date && !/^\d{4}-\d{2}-\d{2}$/.test(form.hire_date)) {
-      setError('Hire date must be YYYY-MM-DD')
-      return
-    }
+    if (!form.first_name || !form.last_name) { setError('First and last name are required'); return }
+    if (form.salary && isNaN(parseFloat(form.salary))) { setError('Salary must be a number'); return }
+    if (form.hire_date && !/^\d{4}-\d{2}-\d{2}$/.test(form.hire_date)) { setError('Hire date must be YYYY-MM-DD'); return }
 
     setLoading(true)
     setError('')
@@ -54,7 +46,10 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
         headers,
         body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have permission to perform this action')
+        throw new Error('Save failed')
+      }
       setForm({ first_name: '', last_name: '', email: '', phone: '', position: '', salary: '', hire_date: '' })
       setEditingId(null)
       await load()
@@ -72,6 +67,8 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
 
   const currencyFmt = (v) => (v == null ? '-' : new Intl.NumberFormat('en-TO', { style: 'currency', currency }).format(v))
 
+  const canManage = role === 'manager' || role === 'admin'
+
   return (
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4">
@@ -86,8 +83,9 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
           <input className="input" placeholder={`Salary (${currency})`} value={form.salary} onChange={e=>setForm(f=>({...f, salary:e.target.value}))} />
           <input className="input" placeholder="Hire Date (YYYY-MM-DD)" value={form.hire_date} onChange={e=>setForm(f=>({...f, hire_date:e.target.value}))} />
           <div className="md:col-span-3 flex gap-2">
-            <button className="btn-primary" disabled={loading}>{editingId ? 'Update' : 'Create'}</button>
+            <button className="btn-primary" disabled={loading || !canManage}>{editingId ? 'Update' : 'Create'}</button>
             {editingId && <button type="button" className="btn-secondary" onClick={()=>{setEditingId(null);setForm({ first_name: '', last_name: '', email: '', phone: '', position: '', salary: '', hire_date: '' })}}>Cancel</button>}
+            {!canManage && <span className="text-xs text-slate-500 self-center">Only managers/admins can create or edit employees</span>}
           </div>
         </form>
       </div>
@@ -97,6 +95,7 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
           <h2 className="font-semibold">Employees</h2>
           <div className="flex gap-2 items-center">
             <input className="input" placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} />
+            <a className="btn-secondary" href={`${baseUrl}/api/hr/employees/export${q ? `?q=${encodeURIComponent(q)}` : ''}`} target="_blank" rel="noreferrer">Export CSV</a>
             <button onClick={load} className="btn-secondary" disabled={loading}>Refresh</button>
           </div>
         </div>
@@ -123,8 +122,7 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
                   <td className="py-2 pr-4">{currencyFmt(emp.salary)}</td>
                   <td className="py-2 pr-4">{emp.hire_date || '-'}</td>
                   <td className="py-2 pr-4">
-                    <button className="text-blue-600 hover:underline" onClick={()=>edit(emp)}>Edit</button>
-                    <a className="ml-3 text-slate-600 hover:underline" href={`${baseUrl}/api/hr/employees/export`} target="_blank" rel="noreferrer">Export CSV</a>
+                    <button className={`text-blue-600 hover:underline disabled:opacity-50`} onClick={()=>edit(emp)} disabled={!canManage}>Edit</button>
                   </td>
                 </tr>
               ))}
@@ -137,13 +135,4 @@ export default function Employees({ baseUrl, token, currency = 'TOP' }) {
       </div>
     </div>
   )
-}
-
-// Tailwind helpers
-const inputClass = 'w-full bg-white border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'
-const btnPrimary = 'bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60'
-const btnSecondary = 'bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-2 rounded-lg disabled:opacity-60'
-
-if (typeof window !== 'undefined') {
-  window.__classes = { input: inputClass, btnPrimary, btnSecondary }
 }

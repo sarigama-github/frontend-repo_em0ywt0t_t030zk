@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {} }) {
+export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {}, role = 'user' }) {
   const [runs, setRuns] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
@@ -47,14 +47,16 @@ export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {}
 
   const submit = async (e) => {
     e.preventDefault()
-    // Validation
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.period_start) || !/^\d{4}-\d{2}-\d{2}$/.test(form.period_end)) { setError('Dates must be YYYY-MM-DD'); return }
 
     setLoading(true)
     setError('')
     try {
       const res = await fetch(`${baseUrl}/api/hr/payroll/runs`, { method: 'POST', headers, body: JSON.stringify(form) })
-      if (!res.ok) throw new Error('Save failed')
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have permission to create payroll runs')
+        throw new Error('Save failed')
+      }
       setForm({ period_start: '', period_end: '' })
       await loadRuns()
     } catch (e) {
@@ -71,6 +73,8 @@ export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {}
     return currencyFmt(total)
   }, [employees])
 
+  const canCreate = role === 'manager' || role === 'admin'
+
   return (
     <div className="space-y-4">
       <div className="bg-white border rounded-xl p-4">
@@ -79,8 +83,9 @@ export default function Payroll({ baseUrl, token, currency = 'TOP', filters = {}
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Period Start (YYYY-MM-DD)" value={form.period_start} onChange={e=>setForm(f=>({...f, period_start:e.target.value}))} />
           <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Period End (YYYY-MM-DD)" value={form.period_end} onChange={e=>setForm(f=>({...f, period_end:e.target.value}))} />
-          <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Create</button>
+          <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading || !canCreate}>Create</button>
         </form>
+        {!canCreate && <p className="text-xs text-slate-500 mt-2">Only managers/admins can create payroll runs</p>}
         <p className="text-sm text-slate-500 mt-2">Current estimated total across employees: <span className="font-medium text-slate-800">{currentPayrollEstimate}</span></p>
       </div>
 

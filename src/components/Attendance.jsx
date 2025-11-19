@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export default function Attendance({ baseUrl, token, filters = {} }) {
+export default function Attendance({ baseUrl, token, filters = {}, role = 'user' }) {
   const [items, setItems] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
@@ -24,6 +24,7 @@ export default function Attendance({ baseUrl, token, filters = {} }) {
     const url = new URL(`${baseUrl}/api/hr/attendance`)
     if (filters.df) url.searchParams.set('date_from', filters.df)
     if (filters.dt) url.searchParams.set('date_to', filters.dt)
+    if (filters.status) url.searchParams.set('status', filters.status)
     return url
   }
 
@@ -43,11 +44,10 @@ export default function Attendance({ baseUrl, token, filters = {} }) {
   }
 
   useEffect(() => { load(); loadEmployees() }, [])
-  useEffect(() => { load() }, [filters.df, filters.dt])
+  useEffect(() => { load() }, [filters.df, filters.dt, filters.status])
 
   const submit = async (e) => {
     e.preventDefault()
-    // Basic validation
     if (!form.employee_id) { setError('Employee is required'); return }
 
     setLoading(true)
@@ -64,6 +64,8 @@ export default function Attendance({ baseUrl, token, filters = {} }) {
       setLoading(false)
     }
   }
+
+  const canRecord = role === 'staff' || role === 'manager' || role === 'admin'
 
   return (
     <div className="space-y-4">
@@ -86,9 +88,10 @@ export default function Attendance({ baseUrl, token, filters = {} }) {
           </select>
           <input className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2" placeholder="Note" value={form.note} onChange={e=>setForm(f=>({...f, note:e.target.value}))} />
           <div className="md:col-span-1">
-            <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading}>Save</button>
+            <button className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg disabled:opacity-60" disabled={loading || !canRecord}>Save</button>
           </div>
         </form>
+        {!canRecord && <p className="text-xs text-slate-500 mt-2">Only staff/managers/admins can record attendance</p>}
       </div>
 
       <div className="bg-white border rounded-xl p-4">

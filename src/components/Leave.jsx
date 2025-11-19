@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export default function Leave({ baseUrl, token, filters = {} }) {
+export default function Leave({ baseUrl, token, filters = {}, role = 'user' }) {
   const [items, setItems] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(false)
@@ -48,7 +48,6 @@ export default function Leave({ baseUrl, token, filters = {} }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    // Validation
     if (!form.employee_id) { setError('Employee is required'); return }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.start_date) || !/^\d{4}-\d{2}-\d{2}$/.test(form.end_date)) { setError('Dates must be YYYY-MM-DD'); return }
 
@@ -72,7 +71,10 @@ export default function Leave({ baseUrl, token, filters = {} }) {
     setError('')
     try {
       const res = await fetch(`${baseUrl}/api/hr/leave/${id}`, { method: 'PUT', headers, body: JSON.stringify({ status }) })
-      if (!res.ok) throw new Error('Update failed')
+      if (!res.ok) {
+        if (res.status === 403) throw new Error('You do not have permission to approve/reject')
+        throw new Error('Update failed')
+      }
       await load()
     } catch (e) {
       setError(e.message)
@@ -80,6 +82,8 @@ export default function Leave({ baseUrl, token, filters = {} }) {
       setLoading(false)
     }
   }
+
+  const canApprove = role === 'manager' || role === 'admin'
 
   return (
     <div className="space-y-4">
@@ -140,8 +144,8 @@ export default function Leave({ baseUrl, token, filters = {} }) {
                     <td className="py-2 pr-4 space-x-2">
                       {row.status === 'pending' && (
                         <>
-                          <button className="text-green-600 hover:underline" onClick={()=>updateStatus(row.id, 'approved')}>Approve</button>
-                          <button className="text-red-600 hover:underline" onClick={()=>updateStatus(row.id, 'rejected')}>Reject</button>
+                          <button className={`text-green-600 hover:underline ${!canApprove ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={()=>canApprove && updateStatus(row.id, 'approved')} disabled={!canApprove}>Approve</button>
+                          <button className={`text-red-600 hover:underline ${!canApprove ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={()=>canApprove && updateStatus(row.id, 'rejected')} disabled={!canApprove}>Reject</button>
                         </>
                       )}
                     </td>

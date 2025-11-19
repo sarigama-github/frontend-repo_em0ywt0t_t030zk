@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import Employees from './Employees'
+import Attendance from './Attendance'
+import Leave from './Leave'
+import Payroll from './Payroll'
 
 export default function Dashboard({ token, baseUrl }) {
   const [profile, setProfile] = useState(null)
@@ -86,9 +89,9 @@ export default function Dashboard({ token, baseUrl }) {
         </nav>
 
         {tab === 'employees' && <Employees baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} />}
-        {tab !== 'employees' && (
-          <div className="bg-white border rounded-xl p-8 text-slate-500">This section will be scaffolded next.</div>
-        )}
+        {tab === 'attendance' && <Attendance baseUrl={baseUrl} token={token} />}
+        {tab === 'leave' && <Leave baseUrl={baseUrl} token={token} />}
+        {tab === 'payroll' && <Payroll baseUrl={baseUrl} token={token} currency={profile?.currency || 'TOP'} />}
       </main>
     </div>
   )
